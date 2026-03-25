@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────
+#  AI Legal Assistant — .gitignore
+# ─────────────────────────────────────────────
+
+# ── Environment & secrets ─────────────────────
+.env
+.env.local
+.env.production
+
+# ── Virtual environment ───────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ── Python cache ──────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.Python
+
+# ── Data folders (too large for GitHub) ──────
+data/raw/
+data/processed/
+
+# ── Audit logs ────────────────────────────────
+logs/
+
+# ── Jupyter notebooks checkpoints ─────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── OS files ──────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE / editor files ────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Package build artifacts ───────────────────
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ── HuggingFace model cache ───────────────────
+.cache/
