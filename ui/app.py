@@ -13,7 +13,14 @@ import sys
 import json
 sys.path.append(".")
 
+# Check if running within streamlit
 import streamlit as st
+if not st.runtime.exists():
+    print("\n" + "="*50)
+    print("  ❌ ERROR: Please run this app using Streamlit:")
+    print("     streamlit run ui/app.py")
+    print("="*50 + "\n")
+    sys.exit(1)
 from agents.orchestrator import Orchestrator
 
 # ── Page config ───────────────────────────────────────────────────────────────

@@ -15,7 +15,7 @@ from pathlib import Path
 
 import fitz  # PyMuPDF
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 
 sys.path.append(".")
@@ -92,7 +92,11 @@ def build_index():
     print("\n  Generating embeddings using HuggingFace all-MiniLM-L6-v2")
     print("  (Downloads ~80MB on first run, then cached locally. Takes 2–5 min.)\n")
 
-    embeddings  = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+    embeddings  = HuggingFaceEmbeddings(
+        model_name=EMBEDDING_MODEL,
+        show_progress=True,
+        encode_kwargs={'batch_size': 64}
+    )
     vectorstore = FAISS.from_documents(all_docs, embeddings)
 
     os.makedirs(FAISS_INDEX_PATH, exist_ok=True)

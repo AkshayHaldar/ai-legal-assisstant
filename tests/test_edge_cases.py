@@ -9,6 +9,7 @@ Usage:
 """
 
 import sys
+import time
 sys.path.append(".")
 
 from agents.orchestrator import Orchestrator
@@ -80,6 +81,10 @@ def run_tests():
         except Exception as e:
             print(f"         Result   : ERROR ❌ — {e}")
             failed += 1
+        
+        # Add delay to respect free tier rate limits (Gemini Flash has strict RPM/RPD limits)
+        print("         (Sleeping 35s for rate limits...)")
+        time.sleep(35)
 
     print("\n" + "=" * 65)
     print(f"  Results: {passed} passed / {failed} failed / {len(TEST_CASES)} total")

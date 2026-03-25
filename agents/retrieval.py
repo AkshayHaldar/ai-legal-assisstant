@@ -8,7 +8,7 @@ Uses HuggingFace all-MiniLM-L6-v2 embeddings (same model used in ingest.py).
 No API key required. Runs entirely locally.
 """
 
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from config import FAISS_INDEX_PATH, EMBEDDING_MODEL, TOP_K_RETRIEVAL
 

@@ -9,19 +9,20 @@ Usage:
 """
 
 import sys
-sys.path.append(".")
+import os
+sys.path.append(os.getcwd())  # Ensure root is in path
 
-import google.generativeai as genai
-from config import GOOGLE_API_KEY, MODEL_NAME
+from google.genai import types
+from config import client, MODEL_NAME, GOOGLE_API_KEY
 
 
 def test_basic_response():
     print("\n[Test 1] Basic Gemini response...")
-    genai.configure(api_key=GOOGLE_API_KEY)
-    model    = genai.GenerativeModel(MODEL_NAME)
-    response = model.generate_content(
-        "In one sentence, what is Section 420 of the Indian Penal Code?",
-        request_options={'timeout': 10}
+    # Use the client directly
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents="In one sentence, what is Section 420 of the Indian Penal Code?",
+        config=types.GenerateContentConfig()
     )
     print(f"  Response: {response.text.strip()}")
     assert len(response.text) > 10, "Response too short — something is wrong"
@@ -30,22 +31,29 @@ def test_basic_response():
 
 def test_json_output():
     print("\n[Test 2] JSON output (compliance agent format)...")
-    genai.configure(api_key=GOOGLE_API_KEY)
-    model = genai.GenerativeModel(
-        MODEL_NAME,
-        generation_config=genai.GenerationConfig(temperature=0),
-    )
+    
     prompt = """
     Return ONLY this JSON object. No markdown, no explanation, start with {:
     {"status": "working", "model": "gemini", "test": true}
     """
-    response = model.generate_content(prompt)
+    
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0,
+            response_mime_type="application/json"
+        )
+    )
     raw = response.text.strip()
     print(f"  Raw response: {raw}")
 
     import json
     # Try to parse
     try:
+        # With response_mime_type="application/json", wrapping usually doesn't happen,
+        # but we keep safety checks just in case.
+        clean_text = raw
         if raw.startswith("```"):
             lines = [l for l in raw.split("\n") if not l.startswith("```")]
             raw   = "\n".join(lines).strip()
@@ -60,13 +68,15 @@ def test_json_output():
 
 def test_system_instruction():
     print("\n[Test 3] System instruction (reasoning agent format)...")
-    genai.configure(api_key=GOOGLE_API_KEY)
-    model = genai.GenerativeModel(
-        MODEL_NAME,
-        system_instruction="You are a legal expert. Always start your answer with 'LEGAL ANSWER:'",
-        generation_config=genai.GenerationConfig(temperature=0.1),
+    
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents="What is a consumer complaint?",
+        config=types.GenerateContentConfig(
+            temperature=0.1,
+            system_instruction="You are a legal expert. Always start your answer with 'LEGAL ANSWER:'"
+        )
     )
-    response = model.generate_content("What is a consumer complaint?")
     print(f"  Response preview: {response.text[:150]}...")
     assert len(response.text) > 20, "Response too short"
     print("  PASS ✅")
