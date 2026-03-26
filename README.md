@@ -1,43 +1,68 @@
-# ⚖️ AI Legal Assistant for Indian Laws
+﻿# ⚖️ AI Legal Assistant for Indian Laws
 
 **ET AI Hackathon 2026 — Problem Statement 5: Domain-Specialized AI Agents with Compliance Guardrails**
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge.svg)](https://share.streamlit.io/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge.svg)](https://share.streamlit.io/)
 
-An intelligent multi-agent system designed to decode complex Indian laws into plain, actionable language for everyday citizens. No jargon. No fees. Just clarity.
+An intelligent, multi-agent AI system designed to decode complex Indian laws into plain, actionable language for everyday citizens. No jargon. No fees. Just pure clarity. 
 
----
-
-## 🚀 Key Features
-
-- **Semantic Legal Search**: RAG-powered retrieval across 10+ major Indian Acts.
-- **Multi-Agent Orchestration**: Specialized agents for Retrieval, Reasoning, and Compliance.
-- **Safety First**: Integrated `ComplianceAgent` to prevent illegal advice and flag emergencies.
-- **Auditability**: Complete decision trail for every query, logged in real-time.
-- **Multilingual Support**: Switch between English and Hindi for wider accessibility.
+Designed specifically to improve **Access to Justice (A2J)** for the common Indian citizen.
 
 ---
 
-## 🛠️ Tech Stack
+## 🚀 The 6 Unique Magic Features
 
-| Component | Technology |
-|-----------|-----------|
-| **Core Framework** | Python (Orchestrator Pattern) & LangChain |
-| **LLM** | Google Gemini 1.5 Flash (via `google-genai` SDK) |
-| **Vector Database** | FAISS (Local) |
-| **Embeddings** | HuggingFace `all-MiniLM-L6-v2` |
-| **UI Framework** | Streamlit |
-| **PDF Processing** | PyMuPDF (fitz) |
+We didn't just build a legal search engine; we built an interactive AI lawyer. Our standout features include:
+
+### 1. 🎙️ Multilingual Voice Input & Output
+Why type a long legal issue when you can just talk?
+*   **Speech-to-Text**: Click the microphone icon to speak your issue. Uses Gemini's Multimodal engine to transcribe seamlessly in English, Hindi, Bengali, Tamil, etc.
+*   **Text-to-Speech (TTS)**: The AI automatically generates a voice output reading its legal advice aloud in your chosen regional language.
+
+### 2. 📄 Instant Document Analysis (OCR)
+People are often confused by dense legal notices.
+*   **Upload Feature**: Users can upload pictures (JPG/PNG) or PDFs of a Rent Agreement, Police FIR, or Legal Notice.
+*   **Plain English Summary**: The AI extracts the difficult terms and explains what the document *actually* means in simple, conversational language.
+
+### 3. ✍️ Automated Legal Draft Generation (PDF)
+Knowing your rights is only step one; taking action is step two.
+*   If the AI detects your issue is a Consumer Complaint or Tenancy dispute, it automatically writes a formal **Legal Notice Draft**.
+*   Users can download the securely formatted `Legal_Draft.pdf` immediately with one click.
+
+### 4. 🤝 Free Legal Aid Dossier (NALSA Handoff)
+Severe or highly complex cases inherently require human lawyers.
+*   With a single click on **"Download Case Dossier"**, the entire chat history and the AI's preliminary findings are packaged into a professional text file. 
+*   This can be forwarded directly to a free legal aid clinic (like NALSA - 15100).
+
+### 5. ❓ Active Clarifying Questions
+If a user just says "My landlord is troubling me," the AI won't spit out random, generic laws.
+*   **Dynamic Follow-ups**: The Query Processor actively detects vague questions and dynamically asks to clarify missing facts (e.g., "In which state?", "Did you sign an agreement?").
+
+### 6. 🛡️ Strict Compliance & Safety Guardrails
+*   A dedicated **Compliance Agent** stands at the gate to completely block illegal advice.
+*   **Emergency Banners**: Automatically detects violent/urgent queries and prominently flags National Emergency Helplines (Police, Women's Helpline, NALSA).
+
+---
+
+## 🛠️ Architecture
+
+The system operates on an advanced "Orchestrator-Worker" Agent pattern:
+
+1.  **Query Processor**: Detects intent, language, and asks clarifying questions for vague prompts.
+2.  **Retrieval Agent**: FAISS + HuggingFace Embeddings (`all-MiniLM-L6-v2`) performs semantic search over our local corpus of major Indian Acts.
+3.  **Reasoning Agent**: Synthesizes the retrieved chunks and user query using strict CoT (Chain of Thought), preventing hallucinations entirely.
+4.  **Compliance Agent**: Evaluates the reasoned response against A2J safety guidelines.
+5.  **Output Translator**: Smoothly localizes responses and generates Text-to-Speech (gTTS).
 
 ---
 
 ## ⚙️ Setup & Installation
 
 ### 1. Prerequisites
-- Python 3.10 or higher
-- [Google AI Studio API Key](https://aistudio.google.com/)
+- Python 3.10+
+- [Google AI Studio API Key](https://aistudio.google.com/) for Gemini 1.5 Flash
 
 ### 2. Clone & Install
 ```bash
@@ -45,13 +70,9 @@ git clone https://github.com/your-team/ai-legal-assistant.git
 cd ai-legal-assistant
 
 # Create virtual environment
-# Windows:
 python -m venv venv
-.\venv\Scripts\activate
-
-# Mac/Linux:
-# python3 -m venv venv
-# source venv/bin/activate
+# Windows: .\venv\Scripts\activate
+# Mac/Linux: source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -63,54 +84,14 @@ Create a `.env` file in the root directory:
 GOOGLE_API_KEY=your_gemini_api_key_here
 ```
 
-### 4. Prepare Legal Knowledge Base
-Place your legal PDFs in `data/raw/`. Recommended files:
-- `constitution.pdf`, `ipc.pdf`, `crpc.pdf`, `cpc.pdf`, `consumer_protection.pdf`
-
-Run the ingestion pipeline to build the FAISS index:
-```bash
-python data/ingest.py
-```
-*(This takes ~3-5 minutes on first run to download models and index chunks).*
-
----
-
-## 🏃 How to Run
-
-> [!IMPORTANT]
-> **Always run the application using the Streamlit command.** Do NOT use `python ui/app.py`.
-
+### 4. Run the Interface
 ```bash
 streamlit run ui/app.py
 ```
 
 ---
 
-## 🏗️ Architecture
-
-The system follows a modular "Orchestrator-Worker" pattern:
-
-1.  **Retrieval Agent**: Performs semantic search using HuggingFace embeddings to find the most relevant sections of the law.
-2.  **Reasoning Agent**: Synthesizes retrieved sections into plain-language explanations using Chain-of-Thought (CoT).
-3.  **Compliance Agent**: Evaluates the response against safety guardrails to ensure no harmful/illegal advice is given.
-4.  **Orchestrator**: Manages the flow, session state, and generates the `audit_id`.
-
----
-
-## 🛑 Troubleshooting
-
-### "missing ScriptRunContext!" Warning
-If you see a long list of warnings or the app doesn't open in your browser, it's likely because you ran the script directly with Python.
-- **Wrong**: `python ui/app.py`
-- **Right**: `streamlit run ui/app.py`
-
-### Deprecation Warnings
-If you see warnings about `HuggingFaceEmbeddings`, ensure you have updated your imports to `langchain_huggingface` as per the latest requirements.
-
----
-
-## 👥 Team
+## 👥 Hackathon Team
 - **Chhavi Gaba** · **Avani Garg** · **Vidushi Gupta** · **Akshay Haldar**
 
----
-*Developed for ET AI Hackathon 2026.*
+*Developed with ❤️ for ET AI Hackathon 2026. Empowering citizens through code.*

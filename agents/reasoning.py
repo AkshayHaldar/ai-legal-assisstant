@@ -55,9 +55,9 @@ From the retrieved context ONLY, identify:
 - Whether central law or state law governs this
 
 STEP 3 — EXPLAIN IN PLAIN LANGUAGE
-Translate the legal text into English a Class 10 student can understand.
+Translate the legal text into extremely simple, everyday language a common person or Class 10 student can understand.
 If you must use a legal term, define it in plain words immediately after.
-Use an analogy if the concept is complex.
+Use a conversational tone and an analogy if the concept is complex.
 
 STEP 4 — GIVE NUMBERED ACTION STEPS
 Concrete steps the user can take right now.

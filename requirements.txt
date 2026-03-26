@@ -5,5 +5,5 @@ langchain-huggingface>=0.0.3
 faiss-cpu>=1.8.0
 sentence-transformers>=3.0.1
 pymupdf>=1.24.9
-streamlit>=1.38.0
+streamlit>=1.40.0
 python-dotenv>=1.0.1

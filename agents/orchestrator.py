@@ -1,4 +1,4 @@
-from agents.retrieval      import RetrievalAgent
+﻿from agents.retrieval      import RetrievalAgent
 from agents.reasoning      import ReasoningAgent
 from agents.compliance     import ComplianceAgent, DISCLAIMER, EMERGENCY_MSG
 from agents.query_processor import QueryProcessor
@@ -17,28 +17,36 @@ class Orchestrator:
 
     def run(self, query: str, language: str = "en") -> dict:
 
-        # ── STEP 1: Query processing (Layer 2) ───────────────────────────────
+        # ── STEP 1: Query processing (Layer 2) ──────────────────────────────────
         print("[Orchestrator] → QueryProcessor")
         processed = self.query_processor.process(query)
-        search_query = processed["reformulated_query"]
-        intent       = processed["intent"]
+        search_query = processed.get("reformulated_query", query)
+        intent       = processed.get("intent", "general")
 
-        # If query is vague, ask for more details instead of guessing
-        if processed["is_vague"]:
+        # If query is vague, ask for more details using dynamically generated clarifying questions
+        if processed.get("is_vague"):
+            questions = processed.get("clarifying_questions", [])
+            if questions:
+                q_bullets = "\n".join([f"- {q}" for q in questions])
+            else:
+                q_bullets = "- Could you please provide a bit more context or details?"
+
             clarification = (
-                f"Your question is a bit general. To give you accurate legal guidance, "
-                f"could you share more details?\n\n"
-                f"For example:\n"
-                f"- What specifically happened?\n"
-                f"- Which state are you in?\n"
-                f"- What outcome are you looking for?\n\n"
-                f"The more details you share, the better I can help."
+                "To give you the most accurate legal guidance, I need a little more context. "
+                "Could you help me with these details?\n\n"
+                f"{q_bullets}\n\n"
+                "The more details you share, the better I can assist you."
                 + DISCLAIMER
             )
+
+            # Translate clarification if needed
+            if language != "en":
+                clarification = self._translate(clarification, language)
+
             return {
                 "answer": clarification, "sources": [],
                 "audit_id": log_event(query, "query_processor", [], "vague query detected",
-                                      False, "", clarification),
+                                      False, "", clarification, language=language),
                 "safe": True, "emergency": False,
                 "compliance_detail": {}, "intent": intent,
                 "review_flag": False,
@@ -54,9 +62,12 @@ class Orchestrator:
                 "Please add more details or consult a licensed advocate."
                 + DISCLAIMER
             )
+            if language != "en":
+                no_result = self._translate(no_result, language)
+
             return {
                 "answer": no_result, "sources": [], "audit_id":
-                log_event(query, "retrieval", [], "", False, "", no_result),
+                log_event(query, "retrieval", [], "", False, "", no_result, language=language),
                 "safe": True, "emergency": False,
                 "compliance_detail": {}, "intent": intent, "review_flag": False,
             }
@@ -70,20 +81,22 @@ class Orchestrator:
         print("[Orchestrator] → ComplianceAgent")
         comp = self.compliance.check(query, raw_answer)
 
-        # ── STEP 5: Multilingual translation ─────────────────────────────────
-        if language == "hi" and comp["safe_to_deliver"]:
-            raw_answer = self._translate_to_hindi(raw_answer)
+        # ── STEP 5: Multilingual translation ──────────────────────────────────
+        if language != "en" and comp.get("safe_to_deliver", True):
+            raw_answer = self._translate(raw_answer, language)
 
         # ── STEP 6: Build final answer ────────────────────────────────────────
         # Human review flag — triggered for family/property/complex cases
         review_flag = intent in ["family", "property"] or len(chunks) < 2
 
-        if not comp["safe_to_deliver"]:
+        if not comp.get("safe_to_deliver", True):
             final_answer = (
                 "This query requires a licensed lawyer.\n\n"
-                f"Reason: {comp['reason']}\n\n"
+                f"Reason: {comp.get('reason', 'Safety policy')}\n\n"
                 "Free help: NALSA helpline 15100" + DISCLAIMER
             )
+            if language != "en":
+                final_answer = self._translate(final_answer, language)
         else:
             final_answer = raw_answer + DISCLAIMER
             if comp.get("emergency_flag"):
@@ -95,33 +108,38 @@ class Orchestrator:
             agent_name="orchestrator",
             retrieved_chunks=[{"act": c["act"], "relevance": c["relevance"],
                                "preview": c["content"][:120]} for c in chunks],
-            reasoning_chain=reasoning["reasoning_chain"],
-            compliance_triggered=not comp["safe_to_deliver"],
-            compliance_reason=comp["reason"],
+            reasoning_chain=reasoning.get("reasoning_chain", ""),
+            compliance_triggered=not comp.get("safe_to_deliver", True),
+            compliance_reason=comp.get("reason", ""),
             final_answer=final_answer,
             language=language,
         )
 
         return {
             "answer":            final_answer,
-            "sources":           reasoning["chunks_used"],
+            "sources":           reasoning.get("chunks_used", []),
             "audit_id":          audit_id,
-            "safe":              comp["safe_to_deliver"],
+            "safe":              comp.get("safe_to_deliver", True),
             "emergency":         comp.get("emergency_flag", False),
             "compliance_detail": comp,
             "intent":            intent,
             "review_flag":       review_flag,   # ← Human review gate
         }
 
-    def _translate_to_hindi(self, text: str) -> str:
-        """Basic Gemini translation — replace with IndicTrans2 for production."""
+    def _translate(self, text: str, lang_code: str) -> str:
+        """Basic Gemini translation — mapping language code."""
         try:
+            prompt = (
+                f"You are speaking to a common person in a conversational way. Translate the following legal guidance into the language code '{lang_code}'.\n"
+                f"- Use EXTREMELY SIMPLE, everyday language.\n"
+                f"- Do NOT use heavy, formal or complex vocabulary.\n"
+                f"- Explain legal terms simply in the target language (keep the technical English term in brackets if helpful).\n"
+                f"- Format the response clearly with simple headings and bullet points.\n\n"
+                f"{text}"
+            )
             resp = client.models.generate_content(
                 model=MODEL_NAME,
-                contents=(
-                    f"Translate this legal guidance to simple Hindi. "
-                    f"Keep legal terms in English with Hindi explanation in brackets.\n\n{text}"
-                )
+                contents=prompt
             )
             return resp.text
         except Exception:

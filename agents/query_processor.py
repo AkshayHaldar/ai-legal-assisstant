@@ -1,4 +1,4 @@
-"""
+﻿"""
 agents/query_processor.py
 --------------------------
 Query Processing Agent — Layer 2 of the architecture.
@@ -25,8 +25,9 @@ Your tasks:
    - "family"       → divorce, custody, marriage, inheritance
    - "property"     → land, ownership, registration, dispute
    - "general"      → does not fit above categories
-3. Assess if the query is too vague to answer (missing key facts)
-4. Reformulate into a clear, specific, searchable version
+3. Assess if the query is too vague to answer (missing key facts like dates, specific actions, state, relationship).
+4. Reformulate into a clear, specific, searchable version.
+5. If vague, provide an array of 2-3 specific "clarifying_questions" to ask the user to get the missing facts.
 
 Return exactly this JSON:
 {
@@ -34,6 +35,7 @@ Return exactly this JSON:
   "intent": "consumer",
   "is_vague": false,
   "vague_reason": "",
+  "clarifying_questions": [],
   "reformulated_query": "the improved version of the query",
   "needs_lawyer": false
 }
@@ -93,6 +95,7 @@ class QueryProcessor:
                 "intent":             fast_intent,
                 "is_vague":           False,
                 "vague_reason":       "",
+                "clarifying_questions": [],
                 "reformulated_query": query,
                 "needs_lawyer":       fast_intent == "criminal",
             }
@@ -100,7 +103,7 @@ class QueryProcessor:
         # Full LLM processing for ambiguous/short queries
         try:
             prompt = f"{QUERY_PROCESSOR_PROMPT}\n\nUser query: {query}"
-            
+
             response = client.models.generate_content(
                 model=MODEL_NAME,
                 contents=prompt,
@@ -118,6 +121,7 @@ class QueryProcessor:
                 "intent":             fast_intent,
                 "is_vague":           len(query.split()) < 5,
                 "vague_reason":       "Query too short" if len(query.split()) < 5 else "",
+                "clarifying_questions": ["Could you provide a few more details about your situation?"] if len(query.split()) < 5 else [],
                 "reformulated_query": query,
                 "needs_lawyer":       fast_intent == "criminal",
             }
