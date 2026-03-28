@@ -22,7 +22,6 @@ __pycache__/
 .Python
 
 # ── Data folders (too large for GitHub) ──────
-data/raw/
 data/processed/
 
 # ── Audit logs ────────────────────────────────

@@ -443,7 +443,10 @@ if query:
         with st.expander("📋 View Reasoning & Audit Trail"):
             st.markdown(f"**Audit ID:** `<span class='audit-id'>{result.get('audit_id', 'N/A')}</span>`", unsafe_allow_html=True)
             for src in result.get("sources", []):
-                st.markdown(f"<div class='source-item'>📖 {src}</div>", unsafe_allow_html=True)
+                # Split source to show a short preview as the expander label, and the full text inside
+                preview = (src[:80] + "...") if len(src) > 80 else src
+                with st.expander(f"📖 {preview}"):
+                    st.markdown(src)
 
 
 

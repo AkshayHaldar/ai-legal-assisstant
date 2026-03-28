@@ -3,37 +3,30 @@ data/ingest.py
 --------------
 Run this ONCE after placing your PDF files in data/raw/
 It builds the FAISS vector index used by the retrieval agent.
-
-Usage:
-    python data/ingest.py
 """
 
 import os
 import json
 import sys
 from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import fitz  # PyMuPDF
+from tqdm import tqdm
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 
 sys.path.append(".")
-from config import FAISS_INDEX_PATH, EMBEDDING_MODEL, CHUNK_SIZE, CHUNK_OVERLAP
+from config import FAISS_INDEX_PATH, EMBEDDING_MODEL, CHUNK_SIZE, CHUNK_OVERLAP 
 
-# ---------------------------------------------------------------------------
-# Map each PDF filename to its metadata
-# Add more acts here as needed
-# ---------------------------------------------------------------------------
+# Map known PDF filenames to their metadata.
 LEGAL_SOURCES = {
-    # Central acts (already have these)
     "constitution.pdf":        {"act": "Indian Constitution",         "type": "central"},
     "ipc.pdf":                 {"act": "Indian Penal Code",            "type": "central"},
     "crpc.pdf":                {"act": "Code of Criminal Procedure",   "type": "central"},
     "cpc.pdf":                 {"act": "Civil Procedure Code",         "type": "central"},
     "consumer_protection.pdf": {"act": "Consumer Protection Act 2019", "type": "central"},
-
-    # Add these — download from indiacode.nic.in
     "rent_control.pdf":        {"act": "Delhi Rent Control Act",       "type": "state"},
     "transfer_property.pdf":   {"act": "Transfer of Property Act",     "type": "central"},
     "negotiable_instruments.pdf": {"act": "Negotiable Instruments Act","type": "central"},
@@ -41,69 +34,93 @@ LEGAL_SOURCES = {
     "domestic_violence.pdf":   {"act": "Protection of Women from DV Act","type": "central"},
 }
 
+def process_single_file(file_path_str: str):
+    """Worker function to extract text and create chunks for one file."""
+    path = Path(file_path_str)
+    filename = path.name
+    meta = LEGAL_SOURCES.get(filename, {"act": filename.split('.')[0].replace('_', ' ').title(), "type": "general"})
 
-def extract_text(pdf_path: str) -> str:
-    """Extract all text from a PDF using PyMuPDF."""
-    doc  = fitz.open(pdf_path)
-    text = "".join(page.get_text() for page in doc)
-    doc.close()
-    return text
+    try:
+        if path.suffix.lower() == ".pdf":
+            doc  = fitz.open(file_path_str)
+            text = "".join(page.get_text() for page in doc)
+            doc.close()
+        elif path.suffix.lower() in [".txt", ".md"]:
+            with open(file_path_str, "r", encoding="utf-8", errors="ignore") as f:
+                text = f.read()
+        else:
+            text = ""
+    except Exception as e:
+        print(f"\n[Error reading {filename}]: {e}")
+        text = ""
 
-
-def build_index():
-    raw_dir  = Path("data/raw")
-    all_docs = []
+    if not text.strip():
+        return []
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
         separators=["\n\n", "\n", ".", " "],
     )
+    
+    chunks = splitter.create_documents(
+        texts=[text],
+        metadatas=[{
+            "source":   filename,
+            "act":      meta["act"],
+            "law_type": meta["type"],
+        }],
+    )
+    return chunks
+
+def build_index():
+    raw_dir  = Path("data/raw")
+    all_docs = []
 
     print("\n========================================")
-    print("  AI Legal Assistant — Index Builder")
+    print("  AI Legal Assistant - FAST Index Builder")
     print("========================================\n")
 
-    for filename, meta in LEGAL_SOURCES.items():
-        path = raw_dir / filename
-        if not path.exists():
-            print(f"  [SKIP] {filename} — not found in data/raw/")
-            continue
-
-        print(f"  [PROCESSING] {filename}")
-        raw_text = extract_text(str(path))
-        chunks   = splitter.create_documents(
-            texts=[raw_text],
-            metadatas=[{
-                "source":   filename,
-                "act":      meta["act"],
-                "law_type": meta["type"],
-            }],
-        )
-        all_docs.extend(chunks)
-        print(f"    → {len(chunks)} chunks created")
-
-    if not all_docs:
-        print("\n  ERROR: No PDFs were processed.")
-        print("  Please add PDF files to the data/raw/ folder and try again.")
+    if not raw_dir.exists():
+        print(f"Directory {raw_dir} does not exist.")
         sys.exit(1)
 
-    print(f"\n  Total chunks across all documents: {len(all_docs)}")
-    print("\n  Generating embeddings using HuggingFace all-MiniLM-L6-v2")
-    print("  (Downloads ~80MB on first run, then cached locally. Takes 2–5 min.)\n")
+    all_files = [str(f) for f in raw_dir.iterdir() if f.suffix.lower() in [".pdf", ".txt", ".md"]]
+    
+    if not all_files:
+        print("\n  ERROR: No PDFs, TXTs, or MDs found in data/raw/.")
+        sys.exit(1)
+
+    print(f"Found {len(all_files)} files. Starting concurrent fast extraction...\n")
+    
+    # Process files concurrently to maximize CPU usage
+    with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
+        futures = {executor.submit(process_single_file, f): f for f in all_files}
+        for future in tqdm(as_completed(futures), total=len(all_files), desc="Chunking Files"):
+            result_chunks = future.result()
+            all_docs.extend(result_chunks)
+
+    if not all_docs:
+        print("\n  ERROR: No text could be extracted from the files.")
+        sys.exit(1)
+
+    print(f"\nTotal chunks across all documents: {len(all_docs)}")
+    print("Generating embeddings (Shows progress below & might take a few minutes)...\n")
 
     embeddings  = HuggingFaceEmbeddings(
         model_name=EMBEDDING_MODEL,
         show_progress=True,
-        encode_kwargs={'batch_size': 64}
+        # Batch size doubled for much faster embedding processing!
+        encode_kwargs={'batch_size': 128} 
     )
+    
+    # Embeddings calculation
     vectorstore = FAISS.from_documents(all_docs, embeddings)
 
     os.makedirs(FAISS_INDEX_PATH, exist_ok=True)
     vectorstore.save_local(FAISS_INDEX_PATH)
-    print(f"\n  FAISS index saved → {FAISS_INDEX_PATH}")
+    print(f"\nFAISS index saved -> {FAISS_INDEX_PATH}")
 
-    # Save a human-readable preview of the first 20 chunks for debugging
     os.makedirs("data/processed", exist_ok=True)
     preview = [
         {
@@ -116,9 +133,8 @@ def build_index():
     with open("data/processed/chunks_preview.json", "w", encoding="utf-8") as f:
         json.dump(preview, f, indent=2, ensure_ascii=False)
 
-    print("  Chunk preview saved → data/processed/chunks_preview.json")
-    print("\n  Index build complete. You can now run: streamlit run ui/app.py\n")
-
+    print("Chunk preview saved -> data/processed/chunks_preview.json")       
+    print("\nIndex build complete. You can now run: streamlit run ui/app.py\n")
 
 if __name__ == "__main__":
     build_index()

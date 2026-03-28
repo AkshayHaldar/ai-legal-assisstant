@@ -24,6 +24,7 @@ Your tasks:
    - "criminal"     → FIR, police, arrest, bail (needs lawyer flag)
    - "family"       → divorce, custody, marriage, inheritance
    - "property"     → land, ownership, registration, dispute
+   - "cyber"        → cyber attacks, data privacy, it act, online frauds
    - "general"      → does not fit above categories
 3. Assess if the query is too vague to answer (missing key facts like dates, specific actions, state, relationship).
 4. Reformulate into a clear, specific, searchable version.
@@ -55,8 +56,8 @@ INTENT_KEYWORDS = {
                   "inheritance", "will", "property dispute family"],
     "property":  ["land", "plot", "registration", "property", "ownership",
                   "mutation", "patta", "encroachment"],
-}
-
+    "cyber":     ["cyber", "data breach", "privacy", "gdpr", "hacking",
+                  "phishing", "online fraud", "ransomware", "it act"],}
 class QueryProcessor:
     def __init__(self):
         self.config = types.GenerateContentConfig(temperature=0)
