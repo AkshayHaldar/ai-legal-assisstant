@@ -20,7 +20,8 @@ import time
 import zipfile
 from datetime import datetime
 
-sys.path.append(".")
+# Add the parent directory to sys.path so 'agents' and 'config' can be resolved properly
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Check if running within streamlit
 import streamlit as st
