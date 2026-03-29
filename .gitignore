@@ -22,7 +22,7 @@ __pycache__/
 .Python
 
 # ── Data folders (too large for GitHub) ──────
-data/processed/
+# data/processed/
 
 # ── Audit logs ────────────────────────────────
 logs/
