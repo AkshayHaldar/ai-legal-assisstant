@@ -90,8 +90,3 @@ streamlit run ui/app.py
 ```
 
 ---
-
-## 👥 Hackathon Team
-- **Chhavi Gaba** · **Avani Garg** · **Vidushi Gupta** · **Akshay Haldar**
-
-*Developed with ❤️ for ET AI Hackathon 2026. Empowering citizens through code.*
